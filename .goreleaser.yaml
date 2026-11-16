@@ -1,0 +1,52 @@
+version: 2
+
+project_name: mercypay
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - binary: mercypay
+    env:
+      - CGO_ENABLED=0
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X github.com/mercy-pay/cli/internal/cmd.Version={{ .Version }}
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "mercypay_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude: ["^docs:", "^test:", "^chore:"]
+
+homebrew_casks:
+  - name: mercypay
+    repository:
+      owner: mercy-pay
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://docs.mercy-pay.com/developers/cli
+    description: La ligne de commande de Mercy Pay
+    binaries: [mercypay]
+    hooks:
+      post:
+        # The binary is not notarized: without this macOS refuses to open it.
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/mercypay"]
+          end
