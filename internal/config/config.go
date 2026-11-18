@@ -28,6 +28,8 @@ type Profile struct {
 
 // Config is the whole file.
 type Config struct {
+	// Current is the profile used when --profile is not given (mercypay config use).
+	Current  string              `json:"current,omitempty"`
 	Profiles map[string]*Profile `json:"profiles"`
 	path     string
 }

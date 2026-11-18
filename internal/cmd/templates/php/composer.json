@@ -1,0 +1,8 @@
+{
+    "name": "demo/[[.Name]]",
+    "description": "Une boutique PHP minimale avec le paiement intégré Mercy Pay",
+    "require": {
+        "php": "^8.2",
+        "mercy-pay/mercy-pay-php": "^0.2"
+    }
+}
