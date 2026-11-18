@@ -104,6 +104,14 @@ var operations = []operation{
 	{"webhook-endpoints", "test", "POST", "/v1/webhook_endpoints/{}/test", "Envoyer un événement webhook.test", "testWebhookEndpoint"},
 
 	{"request-logs", "list", "GET", "/v1/request_logs", "Lister les appels faits avec vos clés", "listRequestLogs"},
+
+	{"embed-domains", "create", "POST", "/v1/embed_domains", "Déclarer un site pour le paiement intégré", "createEmbedDomain"},
+	{"embed-domains", "list", "GET", "/v1/embed_domains", "Lister les sites autorisés", "listEmbedDomains"},
+	{"embed-domains", "get", "GET", "/v1/embed_domains/{}", "Lire un site autorisé", "getEmbedDomain"},
+	{"embed-domains", "verify", "POST", "/v1/embed_domains/{}/verify", "Vérifier l'enregistrement TXT d'un site", "verifyEmbedDomain"},
+	{"embed-domains", "delete", "DELETE", "/v1/embed_domains/{}", "Retirer un site", "deleteEmbedDomain"},
+
+	{"test-helpers", "mobile-money-numbers", "GET", "/v1/test_helpers/mobile_money_numbers", "Lister les numéros de test et ce que chacun produit", "listTestMobileMoneyNumbers"},
 }
 
 // Operations that exist in the API but are a dedicated command instead.
@@ -126,6 +134,7 @@ func addResourceCommands(root *cobra.Command) {
 func operationCommand(op operation) *cobra.Command {
 	var data []string
 	var idempotencyKey string
+	var extras operationExtras
 	ids := strings.Count(op.Path, "{}")
 
 	use := op.Verb
@@ -143,10 +152,11 @@ func operationCommand(op operation) *cobra.Command {
 			for _, id := range args {
 				path = strings.Replace(path, "{}", id, 1)
 			}
-			return call(cmd, op.Method, path, data, idempotencyKey)
+			return runOperation(cmd, op, path, data, idempotencyKey, extras)
 		},
 	}
 	addDataFlags(command, &data, &idempotencyKey, op.Method)
+	addOperationExtras(command, op, &extras)
 	return command
 }
 
@@ -157,24 +167,30 @@ func addDataFlags(command *cobra.Command, data *[]string, idempotencyKey *string
 	}
 }
 
-// call sends one request and prints the JSON answer. GET parameters go in the query string.
+// call sends one request and prints the answer in the chosen format.
 func call(cmd *cobra.Command, method, path string, data []string, idempotencyKey string) error {
+	_, err := send(cmd, method, path, data, idempotencyKey, true)
+	return err
+}
+
+// send sends one request, prints the answer when asked, and returns it.
+func send(cmd *cobra.Command, method, path string, data []string, idempotencyKey string, print bool) (*api.Response, error) {
 	client, _, err := authenticatedClient()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	request := api.Request{Method: method, Path: path, IdempotencyKey: idempotencyKey}
 	if method == http.MethodGet || method == http.MethodDelete {
 		query, err := params.Query(data)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		request.Query = query
 	} else if len(data) > 0 {
 		body, err := params.Parse(data)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		request.Body = body
 	} else {
@@ -182,10 +198,10 @@ func call(cmd *cobra.Command, method, path string, data []string, idempotencyKey
 	}
 
 	response, err := client.Do(cmd.Context(), request)
-	if response != nil {
-		printJSON(cmd.OutOrStdout(), response.Body)
+	if response != nil && (print || err != nil) {
+		render(cmd.OutOrStdout(), response.Body, flags.output)
 	}
-	return err
+	return response, err
 }
 
 // newRawCommands are `mercypay get|post|patch|delete <path>` for anything else.

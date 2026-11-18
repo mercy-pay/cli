@@ -1,0 +1,7 @@
+{
+  "name": "[[.Name]]",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node --env-file=.env server.js" },
+  "dependencies": { "@mercy-pay/node": "^0.3.0", "express": "^5.1.0" }
+}

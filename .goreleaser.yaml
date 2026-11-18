@@ -6,6 +6,8 @@ before:
   hooks:
     - go mod tidy
     - go test ./...
+    # Shell completion, installed by Homebrew and shipped in each archive.
+    - sh -c 'mkdir -p completions && for shell in bash zsh fish; do go run . completion "$shell" > "completions/mercypay.$shell"; done'
 
 builds:
   - binary: mercypay
@@ -25,6 +27,7 @@ archives:
     files:
       - README.md
       - LICENSE
+      - completions/*
 
 checksum:
   name_template: checksums.txt
@@ -43,6 +46,10 @@ homebrew_casks:
     homepage: https://docs.mercy-pay.com/developers/cli
     description: La ligne de commande de Mercy Pay
     binaries: [mercypay]
+    completions:
+      bash: completions/mercypay.bash
+      zsh: completions/mercypay.zsh
+      fish: completions/mercypay.fish
     hooks:
       post:
         # The binary is not notarized: without this macOS refuses to open it.

@@ -38,6 +38,23 @@ Chaque nouvel événement du compte est envoyé à votre serveur, signé comme u
 
 Les événements sont lus toutes les 2 secondes. `--events payment.succeeded,payment.failed` ne relaie que ces types.
 
+## Démarrer un projet
+
+```sh
+mercypay init node        # ou next, php, laravel, django, flutter
+```
+
+Un projet d'exemple prêt à lancer : une session de paiement intégrée, la route des webhooks, et votre clé sandbox déjà dans le fichier d'environnement (jamais une clé live). Le `README.md` du projet dit la suite.
+
+## Faire un vrai paiement de test
+
+```sh
+mercypay payments create --test succeeded --provider MTN_MOMO_CMR --wait
+mercypay payments create --test insufficient_balance --provider ORANGE_CMR --wait
+```
+
+En sandbox, la CLI prend le numéro de test qui produit ce résultat, lance le paiement et attend son statut final. Les résultats : `succeeded`, `pending`, `failed`, ou un `failure_code` comme `insufficient_balance`. `--amount` et `--currency` changent le montant (1 000 XAF par défaut). `mercypay test-helpers mobile-money-numbers -o table` liste tous les numéros.
+
 ## Déclencher un événement de test
 
 ```sh
@@ -68,11 +85,21 @@ mercypay get /v1/account
 - `metadata[cle]=valeur` remplit un objet, `liste[]=valeur` une liste.
 - Un `POST` porte toujours une `Idempotency-Key` : une nouvelle tentative après une coupure ne crée rien en double. `-i` choisit la clé.
 
+- `--wait` attend le statut final d'un paiement ou d'une session : `mercypay payments get pay_… --wait`.
+- `mercypay checkout-sessions create -d amount:=15000 -d currency=XAF --open` ouvre la page de paiement dans le navigateur.
+- `-o table` affiche une liste en colonnes, `-o compact` une seule ligne de JSON (pour `jq`). Le JSON indenté reste le format par défaut.
+
+`mercypay open dashboard`, `mercypay open docs` ou `mercypay open payments` ouvre une page dans le navigateur.
+
 `mercypay <commande> --help` détaille chaque commande. La référence complète de l'API est sur [docs.mercy-pay.com](https://docs.mercy-pay.com).
 
 ## Profils
 
-`--profile boutique-2` garde une connexion séparée par boutique. La configuration est dans `~/.config/mercypay/config.json`.
+`--profile boutique-2` garde une connexion séparée par boutique. `mercypay config list` montre les profils, `mercypay config use boutique-2` choisit celui utilisé par défaut. La configuration est dans `~/.config/mercypay/config.json`.
+
+## Autocomplétion
+
+Installée avec Homebrew. Sinon : `mercypay completion zsh > "${fpath[1]}/_mercypay"` (aussi `bash` et `fish`). Elle propose les commandes, les opérateurs, les types d'événements et les stacks de `init`.
 
 ## Développement
 

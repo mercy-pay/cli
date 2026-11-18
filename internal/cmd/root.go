@@ -27,6 +27,7 @@ type globals struct {
 	apiKey  string
 	profile string
 	baseURL string
+	output  string
 }
 
 var flags globals
@@ -40,17 +41,29 @@ func NewRoot() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		Version:       Version,
+		// Without --profile, the profile chosen with `mercypay config use`.
+		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
+			if cmd.Flags().Changed("profile") {
+				return
+			}
+			if cfg, err := config.Load(); err == nil {
+				flags.profile = currentProfile(cfg)
+			}
+		},
 	}
 
 	root.PersistentFlags().StringVar(&flags.apiKey, "api-key", "", "clé API à utiliser (sinon MERCYPAY_API_KEY, sinon celle enregistrée par login)")
 	root.PersistentFlags().StringVarP(&flags.profile, "profile", "p", "default", "profil à utiliser")
 	root.PersistentFlags().StringVar(&flags.baseURL, "base-url", "", "adresse de l'API (sinon MERCYPAY_API_BASE)")
+	root.PersistentFlags().StringVarP(&flags.output, "output", "o", outputJSON, "format de sortie : json, compact ou table")
+	_ = root.RegisterFlagCompletionFunc("output", cobra.FixedCompletions([]string{outputJSON, outputCompact, outputTable}, cobra.ShellCompDirectiveNoFileComp))
 	_ = root.PersistentFlags().MarkHidden("base-url")
 
 	root.AddGroup(
 		&cobra.Group{ID: "tools", Title: "Développer en local :"},
 		&cobra.Group{ID: "resources", Title: "Appeler l'API :"},
 	)
+	root.AddCommand(newOpenCommand(), newConfigCommand(), newInitCommand())
 	for _, command := range []*cobra.Command{newLoginCommand(), newLogoutCommand(), newStatusCommand(), newListenCommand(), newTriggerCommand(), newLogsCommand()} {
 		command.GroupID = "tools"
 		root.AddCommand(command)
@@ -107,18 +120,32 @@ func authenticatedClient() (*api.Client, *config.Config, error) {
 	}
 	profile := cfg.Profiles[flags.profile]
 
-	key := flags.apiKey
-	if key == "" {
-		key = os.Getenv("MERCYPAY_API_KEY")
-	}
-	if key == "" {
-		key = cfg.Key(flags.profile)
-	}
+	key := keyFrom(cfg)
 	if key == "" {
 		return nil, nil, errors.New("aucune clé : lancez `mercypay login` ou passez --api-key")
 	}
 
 	return api.New(baseURL(profile), key, userAgent()), cfg, nil
+}
+
+// keyFrom finds the key: --api-key, then MERCYPAY_API_KEY, then the profile.
+func keyFrom(cfg *config.Config) string {
+	if flags.apiKey != "" {
+		return flags.apiKey
+	}
+	if key := os.Getenv("MERCYPAY_API_KEY"); key != "" {
+		return key
+	}
+	return cfg.Key(flags.profile)
+}
+
+// resolvedKey is the key the next call will use, or "" when there is none.
+func resolvedKey() string {
+	cfg, err := config.Load()
+	if err != nil {
+		return flags.apiKey
+	}
+	return keyFrom(cfg)
 }
 
 // printJSON writes the body indented and readable (accents and slashes as they are), or as
