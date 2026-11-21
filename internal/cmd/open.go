@@ -19,7 +19,7 @@ var openTargets = map[string]string{
 	"cli":       docsURL + "/developers/cli",
 	"webhooks":  docsURL + "/developers/webhooks/overview",
 	"sandbox":   docsURL + "/start/environments",
-	"status":    "https://mercy-pay.com/statut",
+	"status":    "https://status.mercy-pay.com",
 	"changelog": docsURL + "/changelog",
 }
 
